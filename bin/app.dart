@@ -1,11 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dotenv/dotenv.dart';
 import 'package:metricestan/collector.dart';
+import 'package:metricestan/collectors/mongodb.dart';
 import 'package:metricestan/collectors/redis.dart' as collector;
 import 'package:metricestan/exporter.dart';
 import 'package:metricestan/exporters/new_relic.dart';
 import 'package:metricestan/log.dart';
 
-void main() {
+Future<void> main() async {
   final env = DotEnv(includePlatformEnvironment: true);
   env.load(['.env']);
 
@@ -13,18 +17,62 @@ void main() {
     writer: StdoutLogWriter(),
   );
 
-  List<Exporter> exporters = [];
-  if (env['EXPORTER_NEW_RELIC_ENABLED'] == 'true') {
-    final newRelicExporter = _createNewRelicExporter(env, logger);
-    _setupExportTimer(newRelicExporter, logger);
-    exporters.add(newRelicExporter);
-  }
+  await runZonedGuarded(() async {
+    List<Exporter> exporters = [];
+    if (env['EXPORTER_NEW_RELIC_ENABLED'] == 'true') {
+      final newRelicExporter = _createNewRelicExporter(env, logger);
+      _setupExportTimer(newRelicExporter, logger);
+      exporters.add(newRelicExporter);
+    }
 
-  List<Collector> collectors = [];
-  if (env['COLLECTOR_REDIS_ENABLED'] == 'true') {
-    final redisCollector = _createRedisCollector(env, logger);
-    _setupCollectionTimer(redisCollector, exporters, logger);
-    collectors.add(redisCollector);
+    List<Collector> collectors = [];
+    if (env['COLLECTOR_REDIS_ENABLED'] == 'true') {
+      final redisCollector = _createRedisCollector(env, logger);
+      _setupCollectionTimer(redisCollector, exporters, logger);
+      collectors.add(redisCollector);
+    }
+    if (env['COLLECTOR_MONGODB_ENABLED'] == 'true') {
+      final mongoDbCollector = MongoDb(
+        collectionDuration: int.tryParse(
+              env['COLLECTOR_MONGODB_PERIODICITY_SECONDS'] ?? '60',
+            ) ??
+            60,
+        mongoUrl: env['COLLECTOR_MONGODB_URL'] ?? 'mongodb://localhost:27017',
+        userName: env['COLLECTOR_MONGODB_USERNAME'] ?? '',
+        password: env['COLLECTOR_MONGODB_PASSWORD'] ?? '',
+        authSource: env['COLLECTOR_MONGODB_AUTH_SOURCE'],
+      );
+      _setupCollectionTimer(mongoDbCollector, exporters, logger);
+      collectors.add(mongoDbCollector);
+    }
+
+    ProcessSignal.sigterm.watch().listen((_) async {
+      logger.info('🛑 SIGTERM shutting down main.');
+      await _shutdown(collectors, exporters);
+      exit(0);
+    });
+    ProcessSignal.sigint.watch().listen((_) async {
+      logger.info('🛑 SIGINT shutting down main.');
+      await _shutdown(collectors, exporters);
+      exit(0);
+    });
+  }, (error, stackTrace) {
+    logger.error(
+      'Unhandled error in main zone',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  });
+}
+
+Future<void> _shutdown(
+    List<Collector> collectors, List<Exporter> exporters) async {
+  for (var collector in collectors) {
+    collector.collectionTimer?.cancel();
+  }
+  for (var exporter in exporters) {
+    await exporter.flush();
+    exporter.flushTimer?.cancel();
   }
 }
 
