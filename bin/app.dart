@@ -10,12 +10,16 @@ import 'package:metricestan/exporters/new_relic.dart';
 import 'package:metricestan/log.dart';
 
 Future<void> main() async {
-  final env = DotEnv(includePlatformEnvironment: true);
-  env.load(['.env']);
-
   final logger = Logger(
     writer: StdoutLogWriter(),
   );
+
+  final env = DotEnv(includePlatformEnvironment: true);
+  if (File('.env').existsSync()) {
+    env.load();
+  } else {
+    logger.warning('.env file not found, relying on platform env variables');
+  }
 
   await runZonedGuarded(() async {
     List<Exporter> exporters = [];
