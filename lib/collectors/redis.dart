@@ -11,7 +11,7 @@ class Redis implements Collector {
   final Logger _logger;
   final Set<String> _streamKeys;
   final Set<String> _sortedSetKeys;
-  late final redis.Command _command;
+  redis.Command? _command;
   Timer? _collectionTimer;
 
   Redis({
@@ -66,7 +66,7 @@ class Redis implements Collector {
 
   Future<List<Metric>> _getStreamLength(String streamKey) async {
     try {
-      final count = await _command.send_object(['XLEN', streamKey]) as num?;
+      final count = await _command!.send_object(['XLEN', streamKey]) as num?;
       if (count != null) {
         return [
           Metric(
@@ -90,7 +90,7 @@ class Redis implements Collector {
 
   Future<List<Metric>> _getSortedSetLength(String sortedSetKey) async {
     try {
-      final count = await _command.send_object(['ZCARD', sortedSetKey]) as num?;
+      final count = await _command!.send_object(['ZCARD', sortedSetKey]) as num?;
       if (count != null) {
         return [
           Metric(

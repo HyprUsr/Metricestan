@@ -56,6 +56,9 @@ Future<void> main() async {
       await _shutdown(collectors, exporters);
       exit(0);
     });
+
+    // Keep the main isolate alive indefinitely
+    await Completer<void>().future;
   }, (error, stackTrace) {
     logger.error(
       'Unhandled error in main zone',
@@ -98,7 +101,7 @@ void _setupExportTimer(Exporter exporter, Logger logger) {
 NewRelic _createNewRelicExporter(DotEnv env, Logger logger) {
   return NewRelic(
     flushIntervalSeconds: int.tryParse(
-          env['EXPORTER_NEW_RELIC_FLUSH_INTERVAL_SECONDS'] ?? '60',
+          env['EXPORTER_NEW_RELIC_PERIODICITY_SECONDS'] ?? '60',
         ) ??
         60,
     endpoint: env['EXPORTER_NEW_RELIC_ENDPOINT'] ??
