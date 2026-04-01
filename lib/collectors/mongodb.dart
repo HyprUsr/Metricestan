@@ -74,45 +74,45 @@ class MongoDb implements Collector {
             name: 'mongodb.uptime_seconds',
             value: serverStatusResult.uptime!,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
         if (serverStatusResult.connections != null) ...[
           Metric(
             name: 'mongodb.connections.current',
             value: serverStatusResult.connections!['current'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.connections.available',
             value: serverStatusResult.connections!['available'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.connections.totalCreated',
             value: serverStatusResult.connections!['totalCreated'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.connections.active',
             value: serverStatusResult.connections!['active'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.connections.exhaustIsMaster',
             value: serverStatusResult.connections!['exhaustIsMaster'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.connections.awaitingTopologyChanges',
             value:
                 serverStatusResult.connections!['awaitingTopologyChanges'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
         ],
         if (serverStatusResult.opcounters != null) ...[
@@ -120,37 +120,37 @@ class MongoDb implements Collector {
             name: 'mongodb.opcounters.insert',
             value: serverStatusResult.opcounters!['insert'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.opcounters.query',
             value: serverStatusResult.opcounters!['query'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.opcounters.update',
             value: serverStatusResult.opcounters!['update'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.opcounters.delete',
             value: serverStatusResult.opcounters!['delete'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.opcounters.command',
             value: serverStatusResult.opcounters!['command'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
           Metric(
             name: 'mongodb.opcounters.getmore',
             value: serverStatusResult.opcounters!['getmore'] ?? 0,
             type: MetricType.gauge,
-            attributes: {'db': _dbName},
+            attributes: {'mongoUrl': _mongoUrl},
           ),
         ],
       ];
@@ -194,7 +194,11 @@ class MongoDb implements Collector {
           name: 'mongodb.replicaset.member_health',
           value: (health as num?) ?? 0,
           type: MetricType.gauge,
-          attributes: {'db': _dbName, 'member': name, 'state': stateStr},
+          attributes: {
+            'mongoUrl': _mongoUrl,
+            'member': name,
+            'state': stateStr,
+          },
         ));
 
         if (stateStr == 'SECONDARY' && primary != null) {
@@ -208,7 +212,7 @@ class MongoDb implements Collector {
               name: 'mongodb.replicaset.replication_lag_ms',
               value: lagMs,
               type: MetricType.gauge,
-              attributes: {'db': _dbName, 'member': name},
+              attributes: {'mongoUrl': _mongoUrl, 'member': name},
             ));
           }
         }
