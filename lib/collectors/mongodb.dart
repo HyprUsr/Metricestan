@@ -202,12 +202,13 @@ class MongoDb implements Collector {
         ));
 
         if (stateStr == 'SECONDARY' && primary != null) {
-          final primaryWallTime = primary['lastAppliedWallTime'] as DateTime?;
-          final secondaryWallTime = member['lastAppliedWallTime'] as DateTime?;
+          final primaryOptimeDate = primary['optimeDate'] as DateTime?;
+          final secondaryOptimeDate = member['optimeDate'] as DateTime?;
 
-          if (primaryWallTime != null && secondaryWallTime != null) {
-            final lagMs =
-                primaryWallTime.difference(secondaryWallTime).inMilliseconds;
+          if (primaryOptimeDate != null && secondaryOptimeDate != null) {
+            final lagMs = primaryOptimeDate
+                .difference(secondaryOptimeDate)
+                .inMilliseconds;
             metrics.add(Metric(
               name: 'mongodb.replicaset.replication_lag_ms',
               value: lagMs,
