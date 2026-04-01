@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:metricestan/collector.dart';
+import 'package:metricestan/log.dart';
 import 'package:metricestan/metric.dart';
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:mongo_dart/src/database/commands/base/db_admin_command_operation.dart';
 
 class MongoDb implements Collector {
   final String _mongoUrl;
@@ -15,8 +17,9 @@ class MongoDb implements Collector {
   final bool? _retryWrites;
   final String? _w;
   final Duration _collectionDuration;
-  late final Db _db;
+  Db? _db;
   Timer? _collectionTimer;
+  final Logger _logger;
 
   MongoDb({
     required int collectionDuration,
@@ -29,6 +32,7 @@ class MongoDb implements Collector {
     String? readPreference,
     bool? retryWrites,
     String? w,
+    required Logger logger,
   })  : _mongoUrl = mongoUrl,
         _userName = userName,
         _password = password,
@@ -38,106 +42,191 @@ class MongoDb implements Collector {
         _readPreference = readPreference,
         _retryWrites = retryWrites,
         _w = w,
+        _logger = logger,
         _collectionDuration = Duration(seconds: collectionDuration);
 
   @override
   Future<List<Metric>> collect() async {
-    await _connect();
-    return await _getServerStatusMetrics();
-  }
+    try {
+      await _connect();
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Error connecting to MongoDB',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
 
-  Future<List<Metric>> _getServerStatusMetrics() async {
-    final serverStatusResult = await ServerStatusCommand(_db).executeDocument();
     return [
-      if (serverStatusResult.uptime != null)
-        Metric(
-          name: 'mongodb.uptime_seconds',
-          value: serverStatusResult.uptime!,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-      if (serverStatusResult.connections != null) ...[
-        Metric(
-          name: 'mongodb.connections.current',
-          value: serverStatusResult.connections!['current'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.connections.available',
-          value: serverStatusResult.connections!['available'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.connections.totalCreated',
-          value: serverStatusResult.connections!['totalCreated'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.connections.active',
-          value: serverStatusResult.connections!['active'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.connections.exhaustIsMaster',
-          value: serverStatusResult.connections!['exhaustIsMaster'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.connections.awaitingTopologyChanges',
-          value:
-              serverStatusResult.connections!['awaitingTopologyChanges'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-      ],
-      if (serverStatusResult.opcounters != null) ...[
-        Metric(
-          name: 'mongodb.opcounters.insert',
-          value: serverStatusResult.opcounters!['insert'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.opcounters.query',
-          value: serverStatusResult.opcounters!['query'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.opcounters.update',
-          value: serverStatusResult.opcounters!['update'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.opcounters.delete',
-          value: serverStatusResult.opcounters!['delete'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.opcounters.command',
-          value: serverStatusResult.opcounters!['command'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-        Metric(
-          name: 'mongodb.opcounters.getmore',
-          value: serverStatusResult.opcounters!['getmore'] ?? 0,
-          type: MetricType.gauge,
-          attributes: {'db': _dbName},
-        ),
-      ],
+      ...await _getServerStatusMetrics(),
+      ...await _getReplicasetStatus(),
     ];
   }
 
+  Future<List<Metric>> _getServerStatusMetrics() async {
+    try {
+      final serverStatusResult =
+          await ServerStatusCommand(_db!).executeDocument();
+      return [
+        if (serverStatusResult.uptime != null)
+          Metric(
+            name: 'mongodb.uptime_seconds',
+            value: serverStatusResult.uptime!,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+        if (serverStatusResult.connections != null) ...[
+          Metric(
+            name: 'mongodb.connections.current',
+            value: serverStatusResult.connections!['current'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.connections.available',
+            value: serverStatusResult.connections!['available'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.connections.totalCreated',
+            value: serverStatusResult.connections!['totalCreated'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.connections.active',
+            value: serverStatusResult.connections!['active'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.connections.exhaustIsMaster',
+            value: serverStatusResult.connections!['exhaustIsMaster'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.connections.awaitingTopologyChanges',
+            value:
+                serverStatusResult.connections!['awaitingTopologyChanges'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+        ],
+        if (serverStatusResult.opcounters != null) ...[
+          Metric(
+            name: 'mongodb.opcounters.insert',
+            value: serverStatusResult.opcounters!['insert'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.opcounters.query',
+            value: serverStatusResult.opcounters!['query'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.opcounters.update',
+            value: serverStatusResult.opcounters!['update'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.opcounters.delete',
+            value: serverStatusResult.opcounters!['delete'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.opcounters.command',
+            value: serverStatusResult.opcounters!['command'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+          Metric(
+            name: 'mongodb.opcounters.getmore',
+            value: serverStatusResult.opcounters!['getmore'] ?? 0,
+            type: MetricType.gauge,
+            attributes: {'db': _dbName},
+          ),
+        ],
+      ];
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Error executing ServerStatusCommand',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+    return [];
+  }
+
+  Future<List<Metric>> _getReplicasetStatus() async {
+    try {
+      final result = await DbAdminCommandOperation(
+        _db!,
+        {'replSetGetStatus': 1},
+      ).execute();
+
+      final members = result['members'] as List?;
+      if (members == null) return [];
+
+      Map<String, dynamic>? primary;
+      for (final m in members) {
+        if (m['stateStr'] == 'PRIMARY') {
+          primary = m as Map<String, dynamic>;
+          break;
+        }
+      }
+
+      final metrics = <Metric>[];
+
+      for (final m in members) {
+        final member = m as Map<String, dynamic>;
+        final name = member['name'] as String? ?? 'unknown';
+        final stateStr = member['stateStr'] as String? ?? 'unknown';
+        final health = member['health'];
+
+        metrics.add(Metric(
+          name: 'mongodb.replicaset.member_health',
+          value: (health as num?) ?? 0,
+          type: MetricType.gauge,
+          attributes: {'db': _dbName, 'member': name, 'state': stateStr},
+        ));
+
+        if (stateStr == 'SECONDARY' && primary != null) {
+          final primaryWallTime = primary['lastAppliedWallTime'] as DateTime?;
+          final secondaryWallTime = member['lastAppliedWallTime'] as DateTime?;
+
+          if (primaryWallTime != null && secondaryWallTime != null) {
+            final lagMs =
+                primaryWallTime.difference(secondaryWallTime).inMilliseconds;
+            metrics.add(Metric(
+              name: 'mongodb.replicaset.replication_lag_ms',
+              value: lagMs,
+              type: MetricType.gauge,
+              attributes: {'db': _dbName, 'member': name},
+            ));
+          }
+        }
+      }
+
+      return metrics;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Error executing replSetGetStatus',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+    return [];
+  }
+
   Future<void> _connect() async {
-    _db = await MongoDbConnection.connection(
+    _db ??= await MongoDbConnection.connection(
       mongoUrl: _mongoUrl,
       userName: _userName,
       password: _password,

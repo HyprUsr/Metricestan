@@ -36,16 +36,7 @@ Future<void> main() async {
       collectors.add(redisCollector);
     }
     if (env['COLLECTOR_MONGODB_ENABLED'] == 'true') {
-      final mongoDbCollector = MongoDb(
-        collectionDuration: int.tryParse(
-              env['COLLECTOR_MONGODB_PERIODICITY_SECONDS'] ?? '60',
-            ) ??
-            60,
-        mongoUrl: env['COLLECTOR_MONGODB_URL'] ?? 'mongodb://localhost:27017',
-        userName: env['COLLECTOR_MONGODB_USERNAME'] ?? '',
-        password: env['COLLECTOR_MONGODB_PASSWORD'] ?? '',
-        authSource: env['COLLECTOR_MONGODB_AUTH_SOURCE'],
-      );
+      final mongoDbCollector = _createMongoDbCollector(env, logger);
       _setupCollectionTimer(mongoDbCollector, exporters, logger);
       collectors.add(mongoDbCollector);
     }
@@ -70,6 +61,20 @@ Future<void> main() async {
       stackTrace: stackTrace,
     );
   });
+}
+
+MongoDb _createMongoDbCollector(DotEnv env, Logger logger) {
+  return MongoDb(
+    collectionDuration: int.tryParse(
+          env['COLLECTOR_MONGODB_PERIODICITY_SECONDS'] ?? '60',
+        ) ??
+        60,
+    mongoUrl: env['COLLECTOR_MONGODB_URL'] ?? 'localhost:27017',
+    userName: env['COLLECTOR_MONGODB_USERNAME'] ?? '',
+    password: env['COLLECTOR_MONGODB_PASSWORD'] ?? '',
+    authSource: env['COLLECTOR_MONGODB_AUTH_SOURCE'],
+    logger: logger,
+  );
 }
 
 Future<void> _shutdown(
