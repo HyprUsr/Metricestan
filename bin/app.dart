@@ -7,6 +7,7 @@ import 'package:metricestan/collectors/mongodb.dart';
 import 'package:metricestan/collectors/redis.dart' as collector;
 import 'package:metricestan/exporter.dart';
 import 'package:metricestan/exporters/new_relic.dart';
+import 'package:metricestan/exporters/otel.dart';
 import 'package:metricestan/log.dart';
 
 Future<void> main() async {
@@ -23,6 +24,11 @@ Future<void> main() async {
 
   await runZonedGuarded(() async {
     List<Exporter> exporters = [];
+    if (env['EXPORTER_OTEL_ENABLED'] == 'true') {
+      final otelExporter = _createOtelExporter(env, logger);
+      _setupExportTimer(otelExporter, logger);
+      exporters.add(otelExporter);
+    }
     if (env['EXPORTER_NEW_RELIC_ENABLED'] == 'true') {
       final newRelicExporter = _createNewRelicExporter(env, logger);
       _setupExportTimer(newRelicExporter, logger);
@@ -105,6 +111,37 @@ void _setupExportTimer(Exporter exporter, Logger logger) {
       );
     }
   });
+}
+
+OTel _createOtelExporter(DotEnv env, Logger logger) {
+  return OTel(
+    flushIntervalSeconds: int.tryParse(
+          env['EXPORTER_OTEL_PERIODICITY_SECONDS'] ?? '60',
+        ) ??
+        60,
+    endpoint:
+        env['EXPORTER_OTEL_ENDPOINT'] ?? 'http://localhost:4318/v1/metrics',
+    headers: _parseHeaders(env['EXPORTER_OTEL_HEADERS']),
+    serviceName: env['SERVICE_NAME'] ?? 'Metricestan',
+    resourceAttributes: {
+      if (env['SERVICE_VERSION'] != null)
+        'service.version': env['SERVICE_VERSION'],
+    },
+    logger: logger,
+  );
+}
+
+Map<String, String>? _parseHeaders(String? headersStr) {
+  if (headersStr == null) return null;
+  final entries = headersStr
+      .split(',')
+      .map((h) {
+        final idx = h.indexOf(':');
+        if (idx == -1) return null;
+        return MapEntry(h.substring(0, idx).trim(), h.substring(idx + 1).trim());
+      })
+      .whereType<MapEntry<String, String>>();
+  return Map.fromEntries(entries);
 }
 
 NewRelic _createNewRelicExporter(DotEnv env, Logger logger) {
