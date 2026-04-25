@@ -55,6 +55,7 @@ class MongoDb implements Collector {
         error: error,
         stackTrace: stackTrace,
       );
+      _db = null; // Reset connection on error to attempt reconnect
       rethrow;
     }
 
@@ -160,6 +161,7 @@ class MongoDb implements Collector {
         error: error,
         stackTrace: stackTrace,
       );
+      _db = null; // Reset connection on error to attempt reconnect
     }
     return [];
   }
@@ -226,6 +228,7 @@ class MongoDb implements Collector {
         error: error,
         stackTrace: stackTrace,
       );
+      _db = null; // Reset connection on error to attempt reconnect
     }
     return [];
   }
