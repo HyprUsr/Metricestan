@@ -1,20 +1,24 @@
 # Metricestan
 
-A Dart daemon that collects metrics from infrastructure services and exports them to observability platforms on a configurable interval.
+A Dart daemon that collects metrics from infrastructure services and exports them
+to observability platforms on a configurable interval.
 
 ## How it works
 
 Metricestan runs as a long-lived process with two types of pluggable components:
 
 - **Collectors** — connect to a data source on a timer and emit `Metric` objects
-- **Exporters** — buffer incoming metrics and flush them to an observability backend on a separate timer
+- **Exporters** — buffer incoming metrics and flush them to an observability
+backend on a separate timer
 
-Each collector and exporter runs on its own independent timer. On every collection tick the metrics are handed to all enabled exporters, which buffer them until their flush interval fires.
+Each collector and exporter runs on its own independent timer. On every
+collection tick the metrics are handed to all enabled exporters, which
+buffer them until their flush interval fires.
 
 ```text
-Redis ──┐                       ┌──► New Relic
+Redis ──┐                       ┌──► OTel collector
         ├─► [metric buffer] ────┤
-MongoDB ┘                       └──► OTel collector
+MongoDB ┘                       └──► New Relic
 ```
 
 ## Collectors
@@ -94,9 +98,29 @@ dart pub get
 dart run bin/app.dart
 ```
 
+### Docker
+
+Run with your `.env` file:
+
+```sh
+docker run --rm --env-file .env hyprusr/metricestan:latest
+```
+
+Or pass individual variables:
+
+```sh
+docker run --rm \
+  -e COLLECTOR_REDIS_ENABLED=true \
+  -e COLLECTOR_REDIS_HOST=redis.internal \
+  -e EXPORTER_OTEL_ENABLED=true \
+  -e EXPORTER_OTEL_ENDPOINT=http://otel-collector:4318/v1/metrics \
+  hyprusr/metricestan:latest
+```
+
 ## Example
 
-Monitor Redis stream backlog and export to a local OTel collector (e.g. the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)):
+Monitor Redis stream backlog and export to a local OTel collector
+(e.g. the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)):
 
 ```env
 COLLECTOR_REDIS_ENABLED=true
