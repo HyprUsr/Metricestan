@@ -1,0 +1,11 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build and push the Docker image to Docker Hub
+    cmds:
+      - docker buildx build --platform linux/amd64 -t hyprusr/metricestan:{{.VERSION}} --no-cache -f Dockerfile .
+      - docker push hyprusr/metricestan:{{.VERSION}}
+      - docker tag hyprusr/metricestan:{{.VERSION}} hyprusr/metricestan:latest
+      - docker push hyprusr/metricestan:latest
+  
