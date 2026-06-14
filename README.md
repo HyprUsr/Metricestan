@@ -50,6 +50,7 @@ cp .env.dist .env
 | `COLLECTOR_REDIS_ENABLED`             | —           | Set to `true` to enable                   |
 | `COLLECTOR_REDIS_HOST`                | `localhost`  | Redis hostname                            |
 | `COLLECTOR_REDIS_PORT`                | `6379`      | Redis port                                |
+| `COLLECTOR_REDIS_USERNAME`            | —           | Redis username (optional)                 |
 | `COLLECTOR_REDIS_PASSWORD`            | —           | Redis password (optional)                 |
 | `COLLECTOR_REDIS_TLS_ENABLED`         | `false`     | Enable TLS                                |
 | `COLLECTOR_REDIS_STREAM_KEYS`         | —           | Comma-separated stream keys to measure    |

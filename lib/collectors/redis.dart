@@ -19,6 +19,7 @@ class Redis implements Collector {
     required String hostname,
     required int port,
     bool tlsEnabled = false,
+    String? username,
     String? password,
     Set<String>? streamKeys,
     Set<String>? sortedSetKeys,
@@ -31,6 +32,7 @@ class Redis implements Collector {
           hostname,
           port,
           tlsEnabled,
+          username,
           password,
           logger,
         );
@@ -90,7 +92,8 @@ class Redis implements Collector {
 
   Future<List<Metric>> _getSortedSetLength(String sortedSetKey) async {
     try {
-      final count = await _command!.send_object(['ZCARD', sortedSetKey]) as num?;
+      final count =
+          await _command!.send_object(['ZCARD', sortedSetKey]) as num?;
       if (count != null) {
         return [
           Metric(
@@ -126,6 +129,7 @@ class RedisConnection {
   final String _host;
   final bool _tlsEnabled;
   final int _port;
+  final String? _username;
   final String? _password;
   final Logger logger;
 
@@ -133,6 +137,7 @@ class RedisConnection {
     this._host,
     this._port,
     this._tlsEnabled,
+    this._username,
     this._password,
     this.logger,
   );
@@ -146,7 +151,12 @@ class RedisConnection {
     } else {
       _command = await redis.RedisConnection().connect(_host, _port);
     }
-    if (_password != null && _password.isNotEmpty) {
+    if (_username != null &&
+        _username.isNotEmpty &&
+        _password != null &&
+        _password.isNotEmpty) {
+      await _command!.send_object(['AUTH', _username, _password]);
+    } else if (_password != null && _password.isNotEmpty) {
       await _command!.send_object(['AUTH', _password]);
     }
     return _command!;

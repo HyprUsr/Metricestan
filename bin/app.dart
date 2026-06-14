@@ -133,14 +133,11 @@ OTel _createOtelExporter(DotEnv env, Logger logger) {
 
 Map<String, String>? _parseHeaders(String? headersStr) {
   if (headersStr == null) return null;
-  final entries = headersStr
-      .split(',')
-      .map((h) {
-        final idx = h.indexOf(':');
-        if (idx == -1) return null;
-        return MapEntry(h.substring(0, idx).trim(), h.substring(idx + 1).trim());
-      })
-      .whereType<MapEntry<String, String>>();
+  final entries = headersStr.split(',').map((h) {
+    final idx = h.indexOf(':');
+    if (idx == -1) return null;
+    return MapEntry(h.substring(0, idx).trim(), h.substring(idx + 1).trim());
+  }).whereType<MapEntry<String, String>>();
   return Map.fromEntries(entries);
 }
 
@@ -198,6 +195,7 @@ collector.Redis _createRedisCollector(DotEnv env, Logger logger) {
     hostname: env['COLLECTOR_REDIS_HOST'] ?? 'localhost',
     port: int.tryParse(env['COLLECTOR_REDIS_PORT'] ?? '6379') ?? 6379,
     tlsEnabled: env['COLLECTOR_REDIS_TLS_ENABLED'] == 'true',
+    username: env['COLLECTOR_REDIS_USERNAME'],
     password: env['COLLECTOR_REDIS_PASSWORD'],
     streamKeys: (env['COLLECTOR_REDIS_STREAM_KEYS'] ?? '')
         .split(',')
