@@ -53,9 +53,9 @@ cp .env.dist .env
 | `COLLECTOR_REDIS_USERNAME`            | —           | Redis username (optional)                 |
 | `COLLECTOR_REDIS_PASSWORD`            | —           | Redis password (optional)                 |
 | `COLLECTOR_REDIS_TLS_ENABLED`         | `false`     | Enable TLS                                |
-| `COLLECTOR_REDIS_STREAM_KEYS`         | —           | Comma-separated stream keys to measure    |
-| `COLLECTOR_REDIS_SORTED_SET_KEYS`     | —           | Comma-separated sorted set keys to measure|
 | `COLLECTOR_REDIS_PERIODICITY_SECONDS` | `60`        | Collection interval                       |
+
+Stream and sorted set keys are discovered automatically via `SCAN ... TYPE stream` / `SCAN ... TYPE zset` — no need to list them.
 
 ### MongoDB collector
 
@@ -127,7 +127,6 @@ Monitor Redis stream backlog and export to a local OTel collector
 COLLECTOR_REDIS_ENABLED=true
 COLLECTOR_REDIS_HOST=redis.internal
 COLLECTOR_REDIS_PASSWORD=secret
-COLLECTOR_REDIS_STREAM_KEYS=orders:pending,payments:queue
 COLLECTOR_REDIS_PERIODICITY_SECONDS=30
 
 EXPORTER_OTEL_ENABLED=true

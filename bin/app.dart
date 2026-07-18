@@ -197,14 +197,6 @@ collector.Redis _createRedisCollector(DotEnv env, Logger logger) {
     tlsEnabled: env['COLLECTOR_REDIS_TLS_ENABLED'] == 'true',
     username: env['COLLECTOR_REDIS_USERNAME'],
     password: env['COLLECTOR_REDIS_PASSWORD'],
-    streamKeys: (env['COLLECTOR_REDIS_STREAM_KEYS'] ?? '')
-        .split(',')
-        .where((key) => key.isNotEmpty)
-        .toSet(),
-    sortedSetKeys: (env['COLLECTOR_REDIS_SORTED_SET_KEYS'] ?? '')
-        .split(',')
-        .where((key) => key.isNotEmpty)
-        .toSet(),
     logger: logger,
   );
 }

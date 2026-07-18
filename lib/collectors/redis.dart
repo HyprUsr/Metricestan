@@ -9,8 +9,6 @@ class Redis implements Collector {
   final RedisConnection _redis;
   final Duration _collectionDuration;
   final Logger _logger;
-  final Set<String> _streamKeys;
-  final Set<String> _sortedSetKeys;
   redis.Command? _command;
   Timer? _collectionTimer;
 
@@ -21,12 +19,8 @@ class Redis implements Collector {
     bool tlsEnabled = false,
     String? username,
     String? password,
-    Set<String>? streamKeys,
-    Set<String>? sortedSetKeys,
     required Logger logger,
   })  : _logger = logger,
-        _streamKeys = streamKeys ?? {},
-        _sortedSetKeys = sortedSetKeys ?? {},
         _collectionDuration = Duration(seconds: collectionDuration),
         _redis = RedisConnection(
           hostname,
@@ -54,16 +48,26 @@ class Redis implements Collector {
   Future<List<Metric>> collect() async {
     await _connect();
 
+    final streamKeys = await _scanKeys('stream');
+    final sortedSetKeys = await _scanKeys('zset');
+
     final results = await Future.wait(
       [
-        ..._streamKeys.map(_getStreamLength),
-        ..._sortedSetKeys.map(_getSortedSetLength),
+        ...streamKeys.map(_getStreamLength),
+        ...sortedSetKeys.map(_getSortedSetLength),
       ],
       eagerError: false,
     );
     return [
       for (var result in results) ...result,
     ];
+  }
+
+  Future<List<String>> _scanKeys(String type) async {
+    final reply = await _command!.send_object(
+      ['SCAN', '0', 'TYPE', type, 'COUNT', 1000],
+    ) as List;
+    return (reply[1] as List).map((key) => key.toString()).toList();
   }
 
   Future<List<Metric>> _getStreamLength(String streamKey) async {
