@@ -54,8 +54,12 @@ cp .env.dist .env
 | `COLLECTOR_REDIS_PASSWORD`            | —           | Redis password (optional)                 |
 | `COLLECTOR_REDIS_TLS_ENABLED`         | `false`     | Enable TLS                                |
 | `COLLECTOR_REDIS_PERIODICITY_SECONDS` | `60`        | Collection interval                       |
+| `COLLECTOR_REDIS_INCLUDE_PREFIXES`    | —           | Key prefixes to collect (comma-separated) |
+| `COLLECTOR_REDIS_EXCLUDE_PREFIXES`    | —           | Key prefixes to skip (comma-separated)    |
 
 Stream and sorted set keys are discovered automatically via `SCAN ... TYPE stream` / `SCAN ... TYPE zset` — no need to list them.
+
+To narrow discovery, set `COLLECTOR_REDIS_INCLUDE_PREFIXES` (e.g. `orders:,jobs:`) to only collect keys starting with one of those prefixes, and/or `COLLECTOR_REDIS_EXCLUDE_PREFIXES` (e.g. `tmp:`) to skip keys starting with them. Exclusions win over inclusions.
 
 ### MongoDB collector
 

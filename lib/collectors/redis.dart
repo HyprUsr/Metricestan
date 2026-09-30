@@ -9,6 +9,8 @@ class Redis implements Collector {
   final RedisConnection _redis;
   final Duration _collectionDuration;
   final Logger _logger;
+  final List<String> _includePrefixes;
+  final List<String> _excludePrefixes;
   redis.Command? _command;
   Timer? _collectionTimer;
 
@@ -19,8 +21,12 @@ class Redis implements Collector {
     bool tlsEnabled = false,
     String? username,
     String? password,
+    List<String> includePrefixes = const [],
+    List<String> excludePrefixes = const [],
     required Logger logger,
   })  : _logger = logger,
+        _includePrefixes = includePrefixes,
+        _excludePrefixes = excludePrefixes,
         _collectionDuration = Duration(seconds: collectionDuration),
         _redis = RedisConnection(
           hostname,
@@ -64,11 +70,29 @@ class Redis implements Collector {
   }
 
   Future<List<String>> _scanKeys(String type) async {
-    final reply = await _command!.send_object(
-      ['SCAN', '0', 'TYPE', type, 'COUNT', 1000],
-    ) as List;
-    return (reply[1] as List).map((key) => key.toString()).toList();
+    final patterns = _includePrefixes.isEmpty
+        ? ['*']
+        : _includePrefixes.map((prefix) => '${_escapeGlob(prefix)}*');
+
+    final keys = <String>{};
+    for (final pattern in patterns) {
+      var cursor = '0';
+      do {
+        final reply = await _command!.send_object(
+          ['SCAN', cursor, 'MATCH', pattern, 'TYPE', type, 'COUNT', 1000],
+        ) as List;
+        cursor = reply[0].toString();
+        keys.addAll((reply[1] as List).map((key) => key.toString()));
+      } while (cursor != '0');
+    }
+
+    return keys
+        .where((key) => !_excludePrefixes.any(key.startsWith))
+        .toList();
   }
+
+  String _escapeGlob(String value) =>
+      value.replaceAllMapped(RegExp(r'[\\*?\[\]]'), (m) => '\\${m[0]}');
 
   Future<List<Metric>> _getStreamLength(String streamKey) async {
     try {

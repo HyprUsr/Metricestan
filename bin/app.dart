@@ -197,6 +197,14 @@ collector.Redis _createRedisCollector(DotEnv env, Logger logger) {
     tlsEnabled: env['COLLECTOR_REDIS_TLS_ENABLED'] == 'true',
     username: env['COLLECTOR_REDIS_USERNAME'],
     password: env['COLLECTOR_REDIS_PASSWORD'],
+    includePrefixes: _parseList(env['COLLECTOR_REDIS_INCLUDE_PREFIXES']),
+    excludePrefixes: _parseList(env['COLLECTOR_REDIS_EXCLUDE_PREFIXES']),
     logger: logger,
   );
 }
+
+List<String> _parseList(String? value) => (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .where((item) => item.isNotEmpty)
+    .toList();
